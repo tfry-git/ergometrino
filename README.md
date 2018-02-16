@@ -1,5 +1,5 @@
-# ergorino
-Simple arduino-based ergometer monitor with differential feedback
+# ergometrino
+Simple Arduino-based ergometer display with differential feedback
 
 # Problem statement
 Cardio-workout is boring, particularly when practicing indoors. Several existing projects try to alleviate this by doing cool stuff such as

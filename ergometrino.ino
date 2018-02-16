@@ -1,4 +1,4 @@
-/*  Simple arduino-based ergometer monitor with differential feedback
+/*  Simple Arduino-based ergometer display with differential feedback
  *
  *  See README.md for details and instructions.
  *  
