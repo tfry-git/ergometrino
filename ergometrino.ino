@@ -170,7 +170,7 @@ uint16_t getCurrentSpeed () {
     if (clicks >= total_click_count) break;  // special casing for start of run, when click buffer is not full, yet
     if (--pos < 0) pos = CLICK_BUF_SIZE - 1;
     microtime_t val = last - click_buf[pos];
-    if (val > SPEED_ESTIMATE_WINDOW) break;
+    if ((val > SPEED_ESTIMATE_WINDOW) && (clicks > 1)) break;
     elapsed = val;
     ++clicks;
   }
