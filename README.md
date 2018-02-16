@@ -87,7 +87,7 @@ I'll be happy to accept contributions, but I'm unlikely to implement any of that
 Intial version basically functional.
 
 # License
-[https://www.gnu.org/licenses/gpl-3.0.en.html](GPL Version 3 or later).
+[GPL Version 3 or later](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
 # Begging
 As usual, developing even "simple" things always takes more time than anticipated. Writing up documentation for sharing with others is another significant time sink.
