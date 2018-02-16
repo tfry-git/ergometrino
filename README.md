@@ -2,7 +2,7 @@
 Simple arduino-based ergometer monitor with differential feedback
 
 # Problem statement
-Cardio-workout is boring, particularly when doing it indoors. Several existing projects try to alleviate this by doing cool stuff such as
+Cardio-workout is boring, particularly when practicing indoors. Several existing projects try to alleviate this by doing cool stuff such as
 coupling the ergometer to a game console, or even simulating a real bicycle ride in VR. Cool as these are, technically, they don't really help much:
 Workout is still boring. So, instead, I'd like to be able to just read a book or watch TV while training. But then it's difficult to keep up a
 steady pace.
@@ -21,7 +21,7 @@ I picked an Arduino Pro Mini at 3.3V 8MHz. Pretty much anything supported by the
 display has a driver.
 
 ## Ergometer connection
-Your ergometer will probably have some sort of reed switch or Hall switch sensor for sensing revolutions of the fly wheel or the pedals. Chances are your
+Your ergometer will probably have some sort of reed switch or Hall switch sensor for sensing revolutions of the fly wheel or the pedals. Chances are you
 can plug right into that. Connect between Gnd and Pin D2 (by default) of your Arduino. If you cannot find an existing interface, just attach a magnet to the pedals, and a
 reed switch at a point where the magnet will pass.
 
@@ -44,7 +44,7 @@ _in the current phase of the training_.
 Connect the following pins to Gnd to achieve specific non-standard behavior:
 - D9: Reset best run recording
 - D8: Do not update previous run recording
-- D7: do not update best run recording
+- D7: Do not update best run recording
 
 ## Power supply and consumption
 When using a 3.3V Arduino, you can connect a LiPo battery (or three NiMH cells) directly to Vcc and Gnd (this is ok because the ATMEGA will tolerate up to 5.5V; _not_ ok for use
@@ -54,7 +54,8 @@ expected to work correctly, at least down to 3.0V or so, that should leave you e
 Another good supply option is a USB power bank, with a built-in battery indicator. Of course powering with a 9V battery via Vin, and many other power options will work, too, but
 you won't get battery level indication, then.
 
-With an SSD1306 display and an Arduino Pro Mini 3.3V, the circuit consumes on the order of 12mA @3.6V _without_ the external LEDs.
+With an SSD1306 display and an Arduino Pro Mini 3.3V, the circuit consumes on the order of 12mA @3.6V _without_ the external LEDs. For an Arduino Nano / Uno, expect consumption to
+be 10mA to 20mA higher. Of course external LEDs may also draw substantial current when lit, depending on type of LED and resistor value.
 
 ## Storage
 To keep things simple, all data is stored in the internal EEPROM. No need to connect any external storage. (However, for this reason, there is also no room to store much
@@ -65,12 +66,15 @@ The EEPROM is initialized on first usage. After that, at most four bytes of data
 # Feature details
 
 ## Numeric displays
-- Left hand: Current speed (large) - Average speed - Graph of the speed over the past minute (roughly)
-- Right hand: Distance - Time - Time difference to previous run - Time difference to best run - Low battery warning
+- Left hand: Current speed (large) - Average speed - Graph of the speed over the past minute
+- Right hand: Distance (large) - Time - Time difference to previous run - Time difference to best run - Low battery warning
 
 ## Speed graph
-To help maintain a stable speed, the lower left graph plots your speed over the past minute. This is centered at the current speed, with a range of +/- 7 units.
+To help maintain a stable speed, the lower left graph plots your speed over the past minute (roughly). This is centered at the current speed, with a range of +/- 7 units.
 Dotted lines indicate the average speed _during the current segement_ of the previous, and best runs.
+
+## Quick status LEDs
+See above.
 
 ## Future extensions
 With a bit of tweaking, the display could hold more values such as heart rate, cadence, etc. Also, we could easily keep track of total training time and distance.
@@ -81,6 +85,9 @@ I'll be happy to accept contributions, but I'm unlikely to implement any of that
 
 # Status
 Intial version basically functional.
+
+# License
+[https://www.gnu.org/licenses/gpl-3.0.en.html](GPL Version 3 or later).
 
 # Begging
 As usual, developing even "simple" things always takes more time than anticipated. Writing up documentation for sharing with others is another significant time sink.
