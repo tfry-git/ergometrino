@@ -28,9 +28,9 @@ Adafruit_SSD1306 display (OLED_RESET);
 
 #define INPIN 2                       // Pin that signals clicks / wheel turns. Needs to be a pin that support interrupts
 #define DEBOUNCE_MS 60u               // Debounce timeout. Subsequent clicks within this time window will not be counted
-#define CM_PER_CLICK 200u             // Centimeters per click (for speed calculation). Actually the display is unit-less. This is ten-thousands of a 1.0 per click.
+#define CM_PER_CLICK 600u             // Centimeters per click (for speed calculation). Actually the display is unit-less. This is ten-thousands of a 1.0 per click.
 #define SPEED_ESTIMATE_WINDOW 4000u   // time window to base speed estimates on.
-#define SPEED_TIMEOUT_WINDOW 2000u    // duration since last click, when to assume bike has stopped
+#define SPEED_TIMEOUT_WINDOW 4000u    // duration since last click, when to assume bike has stopped
 #define SEGMENT_LENGTH 500u           // segment length in meters
 #define SEGMENT_COUNT 200u            // max number of segments NOTE: cannot go above 256, without adjusting indexing type, too
 
@@ -43,11 +43,11 @@ Adafruit_SSD1306 display (OLED_RESET);
 #define microtime_t uint32_t  // Used for handling small time (differences). In the present implementaiton, these are quite simply milliseconds
 #define macrotime_t uint16_t  // Used for handling larger times in a memory efficient way. These are quarter-seconds
 
-#define EEPROM_OFFSET 64u
+#define EEPROM_OFFSET 64u     // Reserve some room for magic number and future extensions.
 #define EEPROM_ADDR_OF_SEGMENT(segment) (EEPROM_OFFSET + (segment)*sizeof(macrotime_t))
 const uint16_t EEPROM_MAGIC_NUMBER=0xe1e0;   // If first two bytes of EEPROM match this arbitrary value, assume it initialized
 
-uint32_t last_click = 0;
+volatile uint32_t last_click = 0;
 volatile uint8_t unhandled_click_count;
 uint32_t time_base;
 uint32_t stopped_since;
@@ -185,6 +185,33 @@ uint16_t getCurrentSpeed () {
   return getSpeed (clicks, elapsed);
 }
 
+// Indicate low battery state -- Only for AVR 3.3. V!
+void displayBatteryLow (uint8_t x, uint8_t y) {
+#if defined (__AVR__)
+#if F_CPU > 8000000UL
+#warning You are probably using a 5V processor. This detection algo only makes sense for 3.3V, directly powered by LiPo. Not a problem, but you are not going to get meaningful batter level detection.
+#endif
+/// For supply voltage measurement. Taken from https://jeelabs.org/2012/05/04/measuring-vcc-via-the-bandgap/
+  analogRead(6);    // set up "almost" the proper ADC readout
+  bitSet(ADMUX, 3); // then fix it to switch to channel 14
+  delayMicroseconds(250); // delay substantially improves accuracy
+  bitSet(ADCSRA, ADSC);
+  while (bit_is_set(ADCSRA, ADSC))
+    ;
+  word vread = ADC;
+  bool low_battery = vread && (vread >= 330u);   // Corresponds to a warning at nominally ~3.4V (1023*1.1V/3.4V). Note that the AVR can be expected to be stable down to at least 3V, so still leaves a good bit of room.
+                                                 // Also note that the reading will not be terribly accurate, so don't expect to see it at _exactly_ 3.4V.
+/// end
+
+#else
+  bool low_battery = false;
+#warning Low battery detection not implemented for this board. Please implement it yourself!
+#endif
+  display.setCursor (x, y);
+  if (low_battery) display.print ("LOW BAT");
+}
+
+// Display a number right aligned, divided by ten (with one decimal place)
 void displayFractional (uint16_t num) {
   if (num < 100) display.print (" ");
   display.print (num / 10);
@@ -192,6 +219,7 @@ void displayFractional (uint16_t num) {
   display.print (num % 10);
 }
 
+// Display a number right aligned, divided by 100 (with two decimal places)
 void displayFractionalB (uint16_t num) {
   if (num < 1000) display.print (" ");
   display.print (num / 100);
@@ -200,6 +228,7 @@ void displayFractionalB (uint16_t num) {
   display.print ((num % 100) % 10);
 }
 
+// Display a (macro) time
 void displayTime (macrotime_t time, bool show_hours) {
   if (show_hours) {
     uint8_t hours = time / 14400;
@@ -218,6 +247,7 @@ void displayTime (macrotime_t time, bool show_hours) {
   display.print (seconds);
 }
 
+// Display a (macro) time difference
 void displayDifferentialTime (macrotime_t now, macrotime_t compare) {
   if (!compare) {
     display.print ("  --:--");
@@ -263,12 +293,14 @@ void displaySpeedGraph (uint8_t x, uint8_t y, uint8_t height, uint8_t offset) {
   }
 }
 
+// Retrieve the given segment's timing data from EEPROM. Note: Segments above SEGMENT_COUNT are the "best run", segments below SEGMENT_COUNT are the "previous run"
 void readSegmentInfo (uint8_t num, StoredSegment* segment) {
   segment->start_time = segment->finish_time;
   EEPROM.get (EEPROM_ADDR_OF_SEGMENT (num), segment->finish_time);
   segment->spd = getSpeedMacro (CLICKS_PER_SEGMENT, segment->finish_time - segment->start_time);
 }
 
+// Switch to next segment of the training
 void handleNextSegment (uint8_t segment) {
   if (segment) {
     if (digitalRead (NOUPDATE_PREV_PIN)) EEPROM.put (EEPROM_ADDR_OF_SEGMENT (current_segment), macronow);
@@ -283,6 +315,7 @@ void handleNextSegment (uint8_t segment) {
   readSegmentInfo (segment + SEGMENT_COUNT, &best_run_this_segment);
 }
 
+// Interpolate time at the current position between the given stored segment's start and finish times.
 macrotime_t getCurrentPar (const StoredSegment &compare) {
   if (!compare.finish_time) return 0;
   uint16_t clicks_in_segment = total_click_count % CLICKS_PER_SEGMENT;
@@ -297,13 +330,18 @@ macrotime_t getCurrentPar (const StoredSegment &compare) {
 }
 
 void loop () {
+  noInterrupts ();
   while (unhandled_click_count) {
     ++click_buf_pos;
     if (click_buf_pos >= CLICK_BUF_SIZE) click_buf_pos = 0;
-    click_buf[click_buf_pos] = getMicroTime ();
+    click_buf[click_buf_pos] = last_click;
     --unhandled_click_count;
     ++total_click_count;
   }
+  interrupts ();
+
+  // NOTE: All the code below is rather slow, weighing it at above 100ms (on an 8MHz CPU; 70ms of that for the display.display() line). That's not a problem in my use case, as
+  //       click readings are handled in an ISR, but if you want to handle much higher RPM, you may have to optimize a bit, or smarten up the ISR.
 
   uint16_t spd = getCurrentSpeed ();
   // Stop the stopwatch, when bike is stopped
@@ -355,6 +393,15 @@ void loop () {
   uint8_t second = (macronow / 4) % SPEED_GRAPH_WIDTH;
   if (spd) speed_graph[second] = spd;
   displaySpeedGraph (0, 31, 32, second);
+
+  // battery status indication
+  displayBatteryLow (85, 57);
+
+/* // For performance measurement
+  static uint32_t base;
+  display.setCursor (85, 44);
+  display.print (millis () - base);
+  base = millis (); */
 
   display.display ();
 }

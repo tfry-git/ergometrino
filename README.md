@@ -25,7 +25,11 @@ Your ergometer will probably have some sort of reed switch or Hall switch sensor
 can plug right into that. Connect between Gnd and Pin D2 (by default) of your Arduino. If you cannot find an existing interface, just attach a magnet to the pedals, and a
 reed switch at a point where the magnet will pass.
 
-The top of the sketch has some defines that you can tweak to convert this into a credible km/h or mph reading.
+_Note_ that in the case of a mechanical switch, you _may_ run into issues with jumping readings due to contact bouncing. While the sketch uses a simple timeout for software
+debouncing, it may be helpful to place a 100nF (or so) capacitor between D2 and Gnd for simple hardware debouncing. (No separate resitor needed, capacitor will charge via the
+internal pullup resistor.)
+
+The top of the sketch has some defines that you can tweak to convert this into a credible km/h or mph reading, importantly "CM_PER_CLICK".
 
 ## Display
 This sketch assumes an SSD1306 based 128*64 monochrome display. These are one of the cheapest and easiest display options available, today. Just connect to VCC and Gnd,
@@ -42,21 +46,42 @@ Connect the following pins to Gnd to achieve specific non-standard behavior:
 - D8: Do not update previous run recording
 - D7: do not update best run recording
 
+## Power supply and consumption
+When using a 3.3V Arduino, you can connect a LiPo battery (or three NiMH cells) directly to Vcc and Gnd (this is ok because the ATMEGA will tolerate up to 5.5V; _not_ ok for use
+with genuinely 3.3V processors such as STM32!). For this use case, there will also be a "low battery" warning at around 3.4V, without any additional hardware. As the ATMEGA can be
+expected to work correctly, at least down to 3.0V or so, that should leave you enough time to finish your training unit before recharging.
+
+Another good supply option is a USB power bank, with a built-in battery indicator. Of course powering with a 9V battery via Vin, and many other power options will work, too, but
+you won't get battery level indication, then.
+
+With an SSD1306 display and an Arduino Pro Mini 3.3V, the circuit consumes on the order of 12mA @3.6V _without_ the external LEDs.
+
 ## Storage
 To keep things simple, all data is stored in the internal EEPROM. No need to connect any external storage. (However, for this reason, there is also no room to store much
 more elaborate data).
+
+The EEPROM is initialized on first usage. After that, at most four bytes of data are updated every time a segment (500m, by default) is completed. Thus, write cycle limitation should not be a concern.
 
 # Feature details
 
 ## Numeric displays
 - Left hand: Current speed (large) - Average speed - Graph of the speed over the past minute (roughly)
-- Right hand: Distance - Time - Time difference to previous run - Time difference to best run
+- Right hand: Distance - Time - Time difference to previous run - Time difference to best run - Low battery warning
 
 ## Speed graph
-TODO: explain me
+To help maintain a stable speed, the lower left graph plots your speed over the past minute. This is centered at the current speed, with a range of +/- 7 units.
+Dotted lines indicate the average speed _during the current segement_ of the previous, and best runs.
 
 ## Future extensions
+With a bit of tweaking, the display could hold more values such as heart rate, cadence, etc. Also, we could easily keep track of total training time and distance.
+Finally, if adding separate SD card storage, you could get a much better resolution of the recorded trainings, and also store separate training profiles (e.g. for
+several persons in the same household).
+
+I'll be happy to accept contributions, but I'm unlikely to implement any of that, myself (unless paid to).
 
 # Status
-Intial version basically functional
+Intial version basically functional.
 
+# Begging
+As usual, developing even "simple" things always takes more time than anticipated. Writing up documentation for sharing with others is another significant time sink.
+If you like the project, consider donating via PayPal to thomas.friedrichsmeier@gmx.de . Thanks!
