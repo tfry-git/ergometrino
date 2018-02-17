@@ -294,7 +294,7 @@ void displaySpeedGraph (uint8_t x, uint8_t y, uint8_t height, uint8_t offset) {
 }
 
 // Retrieve the given segment's timing data from EEPROM. Note: Segments above SEGMENT_COUNT are the "best run", segments below SEGMENT_COUNT are the "previous run"
-void readSegmentInfo (uint8_t num, StoredSegment* segment) {
+void readSegmentInfo (uint16_t num, StoredSegment* segment) {
   segment->start_time = segment->finish_time;
   EEPROM.get (EEPROM_ADDR_OF_SEGMENT (num), segment->finish_time);
   segment->spd = getSpeedMacro (CLICKS_PER_SEGMENT, segment->finish_time - segment->start_time);
