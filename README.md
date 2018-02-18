@@ -36,13 +36,19 @@ This sketch assumes an SSD1306 based 128*64 monochrome display. These are one of
 SCL, and SCA (Arduino: A4, and A5), and voilá, you're done. However, any other display with similar dimensions and an Adafruit_GFX-compatible driver will work just as
 well. You may have to tweak some details, if your display geometry is smaller, but that should not be much of a problem.
 
-## Optional jumpers and LEDs
+## Optional quick reference LEDs
 _Optionally_, you can connect LEDs (with appropriate resistors) to D6 and D5, for indication of "you're doing well, you're near or above your best level", and "you're doing
 poorly, you're significantly below your best level", respectively. Note: These LEDs indicate the relation between your current speed, and the best recorded speed
-_in the current phase of the training_.
+_in the current phase of the training_, by default, i.e. the reference speed is _changing_ according to your recorded best training. The idea behind these LEDs is to provide
+a rough feedback mechanism that will be noticeable in peripheral vision, i.e. even while you're looking at something else.
 
+A push button connected to Pin D4 can be used to switch the reference used for the above two LEDs between "best level on this segment" (default), "previous level on this segment"
+"current speed". The latter is very useful for your initial run, or whenever neither the "best level", nor the "previous level" provide a good reference to your current
+training. Modes other than "best level" are indicated by either a small letter "P" or "C" in the lower left corner of the speed graph.
+
+## Optional jumpers
 Connect the following pins to Gnd to achieve specific non-standard behavior:
-- D9: Reset best run recording
+- D9: Reset/erase best run recording
 - D8: Do not update previous run recording
 - D7: Do not update best run recording
 

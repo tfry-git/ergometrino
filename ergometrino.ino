@@ -37,8 +37,9 @@ Adafruit_SSD1306 display (OLED_RESET);
 #define RESET_BEST_PIN 9              // Pull this pin low during power-up to reset recorded best time
 #define NOUPDATE_PREV_PIN 8           // Pull this pin low to prevent updates to the previous run recording
 #define NOUPDATE_BEST_PIN 7           // Pull this pin low to prevent updates to the recorded best time
-#define NEAR_BEST_LED_PIN 6           // An LED connected to this pin will light up, while within 1% or above the current best speed
-#define TOO_SLOW_LED_PIN 5            // An LED connected to this pin will light up, while more than 10% below current best speed
+#define NEAR_BEST_LED_PIN 6           // An LED connected to this pin will light up, while within 1% or above the current best/reference speed
+#define TOO_SLOW_LED_PIN 5            // An LED connected to this pin will light up, while more than 10% below current best/reference speed
+#define SET_REF_BUTTON_PIN 4          // Pin of optional push button to toggle the reference used by the above to LEDs between best/previous/current speed
 
 #define microtime_t uint32_t  // Used for handling small time (differences). In the present implementaiton, these are quite simply milliseconds
 #define macrotime_t uint16_t  // Used for handling larger times in a memory efficient way. These are quarter-seconds
@@ -47,11 +48,22 @@ Adafruit_SSD1306 display (OLED_RESET);
 #define EEPROM_ADDR_OF_SEGMENT(segment) (EEPROM_OFFSET + (segment)*sizeof(macrotime_t))
 const uint16_t EEPROM_MAGIC_NUMBER=0xe1e0;   // If first two bytes of EEPROM match this arbitrary value, assume it initialized
 
+#if (E2END+1) < (EEPROM_OFFSET + 2*SEGEMENT_COUNT*2)
+#error Insufficient eeprom size. Try reducing SEGMENT_COUNT, or use a different chip.
+#endif
+
 volatile uint32_t last_click = 0;
 volatile uint8_t unhandled_click_count;
 uint32_t time_base;
 uint32_t stopped_since;
 uint16_t total_click_count;
+uint32_t button_time;
+uint16_t spd_ref;
+enum {
+  SpeedRefBest,
+  SpeedRefPrev,
+  SpeedRefCurrent
+} spd_ref_mode;
 macrotime_t macronow;
 
 struct StoredSegment {
@@ -118,6 +130,7 @@ void setup()   {
   pinMode (NOUPDATE_BEST_PIN, INPUT_PULLUP);
   pinMode (NEAR_BEST_LED_PIN, OUTPUT);
   pinMode (TOO_SLOW_LED_PIN, OUTPUT);
+  pinMode (SET_REF_BUTTON_PIN, INPUT_PULLUP);
   
   display.begin (SSD1306_SWITCHCAPVCC, 0x3C);
   display.clearDisplay ();
@@ -130,11 +143,12 @@ void setup()   {
   }
   unhandled_click_count = 0;
   total_click_count = 0;
+  button_time = 0;
 
   uint16_t dummy;
   EEPROM.get (0, dummy);
   if (dummy != EEPROM_MAGIC_NUMBER) {
-    for (uint16_t i = 0; i < E2END; ++i) {
+    for (uint16_t i = 0; i <= E2END; ++i) {
       EEPROM.write (i, 0);
     }
     EEPROM.put (0, EEPROM_MAGIC_NUMBER);
@@ -145,6 +159,7 @@ void setup()   {
     }
   }
 
+  spd_ref_mode = SpeedRefBest;
   handleNextSegment (0);
 }
 
@@ -297,7 +312,7 @@ void displaySpeedGraph (uint8_t x, uint8_t y, uint8_t height, uint8_t offset) {
 void readSegmentInfo (uint16_t num, StoredSegment* segment) {
   segment->start_time = segment->finish_time;
   EEPROM.get (EEPROM_ADDR_OF_SEGMENT (num), segment->finish_time);
-  segment->spd = getSpeedMacro (CLICKS_PER_SEGMENT, segment->finish_time - segment->start_time);
+  segment->spd = segment->finish_time ? getSpeedMacro (CLICKS_PER_SEGMENT, segment->finish_time - segment->start_time) : 0;
 }
 
 // Switch to next segment of the training
@@ -313,6 +328,8 @@ void handleNextSegment (uint8_t segment) {
   current_segment = segment;
   readSegmentInfo (segment, &prev_run_this_segment);
   readSegmentInfo (segment + SEGMENT_COUNT, &best_run_this_segment);
+  if (spd_ref_mode == SpeedRefBest) spd_ref = best_run_this_segment.spd;
+  else if (spd_ref_mode == SpeedRefPrev) spd_ref = prev_run_this_segment.spd;
 }
 
 // Interpolate time at the current position between the given stored segment's start and finish times.
@@ -386,16 +403,38 @@ void loop () {
   displayDifferentialTime (macronow, getCurrentPar (best_run_this_segment));
 
   // quick status LEDs
-  digitalWrite (TOO_SLOW_LED_PIN, (((uint32_t) spd * 10) / 9 < best_run_this_segment.spd));
-  digitalWrite (NEAR_BEST_LED_PIN, (((uint32_t) spd * 100) / 99 > best_run_this_segment.spd));
+  {
+    digitalWrite (TOO_SLOW_LED_PIN, spd_ref && ((((uint32_t) spd * 10) / 9 < spd_ref)));
+    digitalWrite (NEAR_BEST_LED_PIN, spd_ref && ((((uint32_t) spd * 100) / 99 > spd_ref)));
+  }
 
   // speed graph
   uint8_t second = (macronow / 4) % SPEED_GRAPH_WIDTH;
   if (spd) speed_graph[second] = spd;
-  displaySpeedGraph (0, 31, 32, second);
+  displaySpeedGraph (0, 26, 37, second);
 
   // battery status indication
   displayBatteryLow (85, 57);
+
+  // check Speed ref mode button
+  if (digitalRead (SET_REF_BUTTON_PIN)) {
+    if (millis () - button_time > 200u) {
+      if (spd_ref_mode == SpeedRefBest) {
+        spd_ref_mode = SpeedRefPrev;
+        spd_ref = prev_run_this_segment.spd;
+      } else if (spd_ref_mode == SpeedRefPrev) {
+        spd_ref_mode = SpeedRefCurrent;
+        spd_ref = spd;
+      } else {
+        spd_ref_mode = SpeedRefBest;
+        spd_ref = best_run_this_segment.spd;
+      }
+    }
+    button_time = millis ();
+  }
+  display.setCursor (0, 57);
+  if (spd_ref_mode == SpeedRefCurrent) display.print ("C");
+  else if (spd_ref_mode == SpeedRefPrev) display.print ("P");
 
 /* // For performance measurement
   static uint32_t base;
