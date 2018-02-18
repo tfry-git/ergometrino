@@ -46,6 +46,9 @@ A push button connected to Pin D4 can be used to switch the reference used for t
 "current speed". The latter is very useful for your initial run, or whenever neither the "best level", nor the "previous level" provide a good reference to your current
 training. Modes other than "best level" are indicated by either a small letter "P" or "C" in the lower left corner of the speed graph.
 
+_Note_: In contrast to the "best run" and "previous run" settings, the "current" speed reference will not update, automatically. To update it, manually, press the button thrice
+to switch away from, and back to "current speed" setting, while maintaining the desired speed.
+
 ## Optional jumpers
 Connect the following pins to Gnd to achieve specific non-standard behavior:
 - D9: Reset/erase best run recording
