@@ -1,6 +1,8 @@
 # ergometrino
 Simple Arduino-based ergometer display with differential feedback
 
+![Project photo](doc/project_photo.jpg)
+
 # Problem statement
 Cardio-workout is boring, particularly when practicing indoors. Several existing projects try to alleviate this by doing cool stuff such as
 coupling the ergometer to a game console, or even simulating a real bicycle ride in VR. Cool as these are, technically, they don't really help much:
@@ -14,6 +16,9 @@ to record a) the previous run and b) the best run (aka highscore), and then prov
 
 # Hardware
 The hardware requirements are deliberately minimal.
+
+For a quick overview, refer to the breadboard view shown below (the red wires symbolize the connection to the ergomenter), but read on for details.
+![Frizzing breadboard view](doc/breadboard.png). More [hands-on instructions are also available](https://www.instructables.com/id/Simple-Arduino-based-Ergometer-Display-With-Differ/).
 
 ## Microprocessor
 As the basis, you'll need at least an ATMEGA328 based arduino (or something better), but it does not matter whether it's a Uno, Nano, whatever. Personally
